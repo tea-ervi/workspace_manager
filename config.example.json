@@ -1,0 +1,20 @@
+{
+  "workspaces": [
+    {
+      "name": "Пример рабочего пространства",
+      "apps": [
+        "C:\\Program Files\\ExampleApp\\app.exe",
+        "code"
+      ],
+      "webs": [
+        {
+          "browser": "chrome",
+          "urls": [
+            "https://github.com",
+            "https://stackoverflow.com"
+          ]
+        }
+      ]
+    }
+  ]
+}
