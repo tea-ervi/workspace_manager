@@ -20,6 +20,22 @@ function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const handleLaunch = async(ws: Workspace) => {
+    try {
+      const allUrls= ws.webs.flatMap(group  => group.urls);
+
+      await invoke('launch_workspace', {
+        apps: ws.apps,
+        urls: allUrls,
+      });
+
+      console.log(`Workspace "${ws.name}" launched successfully`);
+    } catch(err) {
+      console.error("Error during workspace launching: ", err);
+      alert(`Cannot be launched: ${err}`);
+    }
+  }
+
   useEffect(() => {
     invoke<string>('get_workspaces')
       .then((res) => {
@@ -62,7 +78,7 @@ function App() {
                 </div>
 
                 <button 
-                  onClick={() => alert(`Запуск пространства: ${ws.name}`)}
+                  onClick={() => handleLaunch(ws)}
                   className="w-full py-2 bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
                 >
                   Запустить
