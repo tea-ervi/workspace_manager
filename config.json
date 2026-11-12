@@ -1,0 +1,26 @@
+{
+  "workspaces": [
+    {
+      "name": "Разработка",
+      "apps": [
+        "C:\\Users\\User\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+      ],
+      "webs": [
+        {
+          "browser": "edge",
+          "urls": ["https://github.com", "https://stackoverflow.com"]
+        }
+      ]
+    },
+    {
+      "name": "Отдых и игры",
+      "apps": [],
+      "webs": [
+        {
+          "browser": "edge",
+          "urls": ["https://youtube.com"]
+        }
+      ]
+    }
+  ]
+}
