@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Workspace, ConfigData } from './types';
 import CreateWorkspace from './CreateWorkspace';
+import EditWorkspace from './EditWorkspace';
 
-
+interface EditingTarget {
+  index: number;
+  workspace: Workspace;
+}
 
 function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<'home' | 'create'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'create' | 'edit'>('home');
+  const [editingTarget, setEditingTarget] = useState<EditingTarget | null>(null);
 
   const fetchWorkspaces = async () => {
     try {
@@ -23,9 +28,9 @@ function App() {
     }
   };
 
-  const handleLaunch = async(ws: Workspace) => {
+  const handleLaunch = async (ws: Workspace) => {
     try {
-      const allUrls= ws.webs.flatMap(group  => group.urls);
+      const allUrls = ws.webs.flatMap((group) => group.urls);
 
       await invoke('launch_workspace', {
         apps: ws.apps,
@@ -33,11 +38,21 @@ function App() {
       });
 
       console.log(`Workspace "${ws.name}" launched successfully`);
-    } catch(err) {
+    } catch (err) {
       console.error("Error during workspace launching: ", err);
       alert(`Cannot be launched: ${err}`);
     }
-  }
+  };
+
+  const handleOpenEdit = (index: number, ws: Workspace) => {
+    setEditingTarget({ index, workspace: ws });
+    setCurrentView('edit');
+  };
+
+  const handleReturnHome = () => {
+    setEditingTarget(null);
+    setCurrentView('home');
+  };
 
   useEffect(() => {
     fetchWorkspaces();
@@ -45,8 +60,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-8 font-sans selection:bg-indigo-500/30">
-      
-      {currentView === 'home' ? (
+      {currentView === 'home' && (
         <>
           <header className="mb-8">
             <h1 className="text-2xl font-semibold tracking-tight text-slate-100">Workspaces</h1>
@@ -57,14 +71,15 @@ function App() {
             <div className="text-xs text-slate-500 animate-pulse">Загрузка...</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              
               {/* Карточка добавления нового пространства */}
-              <button 
+              <button
                 onClick={() => setCurrentView('create')}
                 className="group bg-slate-900/30 hover:bg-slate-900/70 border border-dashed border-slate-800 hover:border-slate-700 rounded-xl p-5 transition-all flex flex-col items-center justify-center gap-2 min-h-[120px] cursor-pointer"
               >
                 <span className="text-xl text-slate-500 group-hover:text-indigo-400 transition-colors font-light">+</span>
-                <span className="text-xs text-slate-500 group-hover:text-slate-300 transition-colors font-medium">Новое пространство</span>
+                <span className="text-xs text-slate-500 group-hover:text-slate-300 transition-colors font-medium">
+                  Новое пространство
+                </span>
               </button>
 
               {/* Карточки пространств */}
@@ -72,20 +87,39 @@ function App() {
                 const totalUrls = ws.webs.reduce((acc, w) => acc + w.urls.length, 0);
 
                 return (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="group bg-slate-900/50 hover:bg-slate-900 border border-slate-900 hover:border-slate-800 rounded-xl p-5 transition-all flex flex-col justify-between gap-4"
                   >
-                    <div>
-                      <h2 className="text-base font-medium text-slate-200 group-hover:text-indigo-400 transition-colors">
-                        {ws.name}
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {ws.apps.length} прил. / {totalUrls} вкл.
-                      </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h2 className="text-base font-medium text-slate-200 group-hover:text-indigo-400 transition-colors">
+                          {ws.name}
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {ws.apps.length} прил. / {totalUrls} вкл.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(index, ws)}
+                        title="Редактировать"
+                        aria-label={`Редактировать ${ws.name}`}
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="w-3.5 h-3.5"
+                        >
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                      </button>
                     </div>
 
-                    <button 
+                    <button
                       onClick={() => handleLaunch(ws)}
                       className="w-full py-2 bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
                     >
@@ -97,16 +131,29 @@ function App() {
             </div>
           )}
         </>
-      ) : (
-        <CreateWorkspace 
-          onBack={() => setCurrentView('home')} 
+      )}
+
+      {currentView === 'create' && (
+        <CreateWorkspace
+          onBack={handleReturnHome}
           onCreated={() => {
             fetchWorkspaces();
-            setCurrentView('home');
-          }} 
+            handleReturnHome();
+          }}
         />
       )}
 
+      {currentView === 'edit' && editingTarget && (
+        <EditWorkspace
+          index={editingTarget.index}
+          workspace={editingTarget.workspace}
+          onBack={handleReturnHome}
+          onUpdated={() => {
+            fetchWorkspaces();
+            handleReturnHome();
+          }}
+        />
+      )}
     </div>
   );
 }

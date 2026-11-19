@@ -79,10 +79,36 @@ fn create_workspace(new_workspace: WorkspaceConfig) -> Result<(), String> {
     Ok(())
 }
 
+#[command]
+fn update_workspace(index: usize, updated_workspace: WorkspaceConfig) -> Result<(), String> {
+    let config_path = "../config.json";
+
+    let content = std::fs::read_to_string(config_path)
+        .map_err(|e| format!("Cannot read config.json: {}", e))?;
+
+    let mut app_config: AppConfig = serde_json::from_str(&content)
+        .map_err(|e| format!("Error parsing config.json: {}", e))?;
+
+    let target = app_config
+        .workspaces
+        .get_mut(index)
+        .ok_or_else(|| format!("Workspace with index {} not found", index))?;
+
+    *target = updated_workspace;
+
+    let json_data = serde_json::to_string_pretty(&app_config)
+        .map_err(|e| format!("Error serializing JSON: {}", e))?;
+
+    std::fs::write(config_path, json_data)
+        .map_err(|e| format!("Cannot write to config.json: {}", e))?;
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_workspaces, launch_workspace, create_workspace])
+        .invoke_handler(tauri::generate_handler![get_workspaces, launch_workspace, create_workspace, update_workspace])
         .run(tauri::generate_context!())
         .expect("Ошибка при запуске приложения Tauri");
 }
