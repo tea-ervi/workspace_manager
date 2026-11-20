@@ -9,11 +9,18 @@ interface EditingTarget {
   workspace: Workspace;
 }
 
+interface DeleteTarget {
+  index: number;
+  name: string;
+}
+
 function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<'home' | 'create' | 'edit'>('home');
   const [editingTarget, setEditingTarget] = useState<EditingTarget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchWorkspaces = async () => {
     try {
@@ -52,6 +59,22 @@ function App() {
   const handleReturnHome = () => {
     setEditingTarget(null);
     setCurrentView('home');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      setDeleting(true);
+      await invoke('delete_workspace', { index: deleteTarget.index });
+      setDeleteTarget(null);
+      await fetchWorkspaces();
+    } catch (err) {
+      console.error("Error during workspace deletion:", err);
+      alert(`Не удалось удалить пространство: ${err}`);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   useEffect(() => {
@@ -101,22 +124,45 @@ function App() {
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(index, ws)}
-                        title="Редактировать"
-                        aria-label={`Редактировать ${ws.name}`}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          className="w-3.5 h-3.5"
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(index, ws)}
+                          title="Редактировать"
+                          aria-label={`Редактировать ${ws.name}`}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
                         >
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                      </button>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="w-3.5 h-3.5"
+                          >
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget({ index, name: ws.name })}
+                          title="Удалить"
+                          aria-label={`Удалить ${ws.name}`}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="w-3.5 h-3.5"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
 
                     <button
@@ -153,6 +199,39 @@ function App() {
             handleReturnHome();
           }}
         />
+      )}
+
+      {/* Модальное окно подтверждения удаления */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+            <div>
+              <h2 className="text-base font-medium text-slate-100">Удалить пространство?</h2>
+              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                Пространство <span className="text-slate-200 font-medium">«{deleteTarget.name}»</span> будет удалено из конфигурации. Это действие нельзя отменить.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+              >
+                {deleting ? 'Удаление...' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
