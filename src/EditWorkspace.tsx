@@ -3,14 +3,12 @@ import { invoke } from '@tauri-apps/api/core';
 import type { Workspace } from './types';
 
 interface EditWorkspaceProps {
-  index: number;
   workspace: Workspace;
   onBack: () => void;
   onUpdated: () => void;
 }
 
 export default function EditWorkspace({
-  index,
   workspace,
   onBack,
   onUpdated,
@@ -24,17 +22,19 @@ export default function EditWorkspace({
     e.preventDefault();
     if (!name.trim()) return;
 
+    const workspaceId = workspace.id ?? crypto.randomUUID();
     const appsList = apps.split('\n').map((s) => s.trim()).filter(Boolean);
     const urlsList = urls.split('\n').map((s) => s.trim()).filter(Boolean);
 
     const updatedWorkspace: Workspace = {
+      id: workspaceId,
       name: name.trim(),
       apps: appsList,
       webs: urlsList.length > 0 ? [{ browser: browser.trim() || 'default', urls: urlsList }] : [],
     };
 
     try {
-      await invoke('update_workspace', { index, updatedWorkspace });
+      await invoke('update_workspace', { id: workspaceId, updatedWorkspace });
       onUpdated();
     } catch (err) {
       alert(`Не удалось обновить пространство: ${err}`);

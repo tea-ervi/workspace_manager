@@ -25,6 +25,7 @@ export default function CreateWorkspace({ onBack, onCreated }: CreateWorkspacePr
     const urlsList = newUrls.split('\n').map(s => s.trim()).filter(Boolean);
 
     const newWorkspace: Workspace = {
+      id: crypto.randomUUID(),
       name: newName.trim(),
       apps: appsList,
       webs: urlsList.length > 0 ? [{ browser: newBrowser.trim() || "default", urls: urlsList }] : []

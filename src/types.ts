@@ -4,6 +4,7 @@ export interface WebGroup {
 }
 
 export interface Workspace {
+  id?: string;
   name: string;
   apps: string[];
   webs: WebGroup[];

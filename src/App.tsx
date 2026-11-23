@@ -4,13 +4,8 @@ import type { Workspace, ConfigData } from './types';
 import CreateWorkspace from './CreateWorkspace';
 import EditWorkspace from './EditWorkspace';
 
-interface EditingTarget {
-  index: number;
-  workspace: Workspace;
-}
-
 interface DeleteTarget {
-  index: number;
+  id: string;
   name: string;
 }
 
@@ -18,7 +13,7 @@ function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<'home' | 'create' | 'edit'>('home');
-  const [editingTarget, setEditingTarget] = useState<EditingTarget | null>(null);
+  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -27,9 +22,15 @@ function App() {
       setLoading(true);
       const res = await invoke<string>('get_workspaces');
       const parsed: ConfigData = JSON.parse(res);
-      setWorkspaces(parsed.workspaces || []);
+
+      const normalized = (parsed.workspaces || []).map((ws) => ({
+        ...ws,
+        id: ws.id ?? crypto.randomUUID(),
+      }));
+
+      setWorkspaces(normalized);
     } catch (err) {
-      console.error("Ошибка при загрузке конфига:", err);
+      console.error('Ошибка при загрузке конфига:', err);
     } finally {
       setLoading(false);
     }
@@ -46,18 +47,19 @@ function App() {
 
       console.log(`Workspace "${ws.name}" launched successfully`);
     } catch (err) {
-      console.error("Error during workspace launching: ", err);
+      console.error('Error during workspace launching: ', err);
       alert(`Cannot be launched: ${err}`);
     }
   };
 
-  const handleOpenEdit = (index: number, ws: Workspace) => {
-    setEditingTarget({ index, workspace: ws });
+  const handleOpenEdit = (ws: Workspace) => {
+    const wsWithId: Workspace = { ...ws, id: ws.id ?? crypto.randomUUID() };
+    setEditingWorkspace(wsWithId);
     setCurrentView('edit');
   };
 
   const handleReturnHome = () => {
-    setEditingTarget(null);
+    setEditingWorkspace(null);
     setCurrentView('home');
   };
 
@@ -66,11 +68,11 @@ function App() {
 
     try {
       setDeleting(true);
-      await invoke('delete_workspace', { index: deleteTarget.index });
+      await invoke('delete_workspace', { id: deleteTarget.id });
       setDeleteTarget(null);
       await fetchWorkspaces();
     } catch (err) {
-      console.error("Error during workspace deletion:", err);
+      console.error('Error during workspace deletion:', err);
       alert(`Не удалось удалить пространство: ${err}`);
     } finally {
       setDeleting(false);
@@ -108,10 +110,11 @@ function App() {
               {/* Карточки пространств */}
               {workspaces.map((ws, index) => {
                 const totalUrls = ws.webs.reduce((acc, w) => acc + w.urls.length, 0);
+                const wsId = ws.id ?? String(index);
 
                 return (
                   <div
-                    key={index}
+                    key={wsId}
                     className="group bg-slate-900/50 hover:bg-slate-900 border border-slate-900 hover:border-slate-800 rounded-xl p-5 transition-all flex flex-col justify-between gap-4"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -127,7 +130,7 @@ function App() {
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => handleOpenEdit(index, ws)}
+                          onClick={() => handleOpenEdit(ws)}
                           title="Редактировать"
                           aria-label={`Редактировать ${ws.name}`}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
@@ -144,7 +147,7 @@ function App() {
 
                         <button
                           type="button"
-                          onClick={() => setDeleteTarget({ index, name: ws.name })}
+                          onClick={() => setDeleteTarget({ id: wsId, name: ws.name })}
                           title="Удалить"
                           aria-label={`Удалить ${ws.name}`}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
@@ -189,10 +192,9 @@ function App() {
         />
       )}
 
-      {currentView === 'edit' && editingTarget && (
+      {currentView === 'edit' && editingWorkspace && (
         <EditWorkspace
-          index={editingTarget.index}
-          workspace={editingTarget.workspace}
+          workspace={editingWorkspace}
           onBack={handleReturnHome}
           onUpdated={() => {
             fetchWorkspaces();
